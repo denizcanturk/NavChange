@@ -5,7 +5,8 @@ from matplotlib.animation import FuncAnimation
 from mpl_toolkits.mplot3d import Axes3D
 
 # 1. VERİ HAZIRLIĞI
-df = pd.read_csv('DetailToAnalyse.csv')
+#df = pd.read_csv('DetailToAnalyse.csv')
+df = pd.read_csv('DnzRec.csv')
 df.columns = [col.strip().replace('"', '') for col in df.columns]
 
 # Hız verilerini al (Feet/Saniye kabul ediyoruz)
@@ -17,7 +18,7 @@ for col in cols:
 
 # --- İNTEGRAL ALARAK KONUM HESAPLAMA ---
 # dt = 0.05 saniye (20 Hz)
-dt = 0.05
+dt = 0.005
 
 # Kümülatif toplam alarak anlık pozisyonu (Feet) buluyoruz
 # Başlangıç noktası (0,0,0) kabul edilir.
@@ -122,7 +123,7 @@ def update(frame):
 
 # Animasyonu oluştur
 ani = FuncAnimation(fig, update, frames=range(1, len(df_plot)), 
-                    interval=50, blit=False)
+                    interval=10, blit=False)
 
 plt.legend(loc='upper left')
 plt.show()

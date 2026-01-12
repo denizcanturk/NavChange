@@ -4,9 +4,9 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 
 # 1. VERİ YÜKLEME VE ÖZEL FİLTRELEME
-df = pd.read_csv('DetailToAnalyse.csv')
-df.columns = [col.strip().replace('"', '') for col in df.columns]
-
+#df = pd.read_csv('DetailToAnalyse.csv')
+#df.columns = [col.strip().replace('"', '') for col in df.columns]
+df = pd.read_csv('DnzRec.csv')
 columns_to_show = [
     "VelocityX", "VelocityY", "VelocityZ", 
     "PlatformAzimuth", "RollAngle", "PitchAngle", 

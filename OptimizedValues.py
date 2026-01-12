@@ -6,8 +6,8 @@ from matplotlib.animation import FuncAnimation
 # ---------------------------------------------------------
 # 1. VERİ YÜKLEME VE ÖN İŞLEME
 # ---------------------------------------------------------
-df = pd.read_csv('DetailToAnalyse.csv')
-
+#df = pd.read_csv('DetailToAnalyse.csv')
+df = pd.read_csv('DnzRec.csv')
 # Sütun isimlerindeki tırnak ve boşlukları temizle
 df.columns = [col.strip().replace('"', '') for col in df.columns]
 
@@ -94,7 +94,7 @@ for i, config in enumerate(plot_config):
 # 4. ANİMASYON DÖNGÜSÜ
 # ---------------------------------------------------------
 WINDOW_SIZE = 200  # Ekranda görünen veri noktası sayısı
-STEP = 5           # Daha akıcı bir görüntü için adım sayısı düşürüldü
+STEP = 1200           # Daha akıcı bir görüntü için adım sayısı düşürüldü
 
 def init():
     for ax in axes:
@@ -124,12 +124,16 @@ def update(frame):
                 
                 axes[i].set_ylim(y_min - margin, y_max + margin)
                 axes[i].set_xlim(0, WINDOW_SIZE)
-                
+
+    if "TimeMarker" in df.columns and not subset.empty:
+        # subset'in son satırı o anki "şimdiki zaman"dır
+        current_time_val = subset["TimeMarker"].iloc[-1]
+        print(f"Zaman: {current_time_val}")            
     return lines
 
 # interval=100ms -> Saniyede 10 kare (Veri akışı daha pürüzsüz)
 ani = FuncAnimation(fig, update, frames=range(STEP, len(df), STEP), 
-                    init_func=init, blit=False, interval=100, repeat=False)
+                    init_func=init, blit=False, interval=10, repeat=False)
 
 plt.tight_layout(rect=[0, 0.03, 1, 0.97])
 plt.show()
