@@ -1,0 +1,3 @@
+python -m pip download matplotlib pandas --dest ./Libs --patform win_amd64 --python-version 310 --only-binary=:all: --implementation cp --abi cp310
+
+python -m pip install pandas matplotlib --no-index --find-links "C:\Klasor\Yolu\Libs"
