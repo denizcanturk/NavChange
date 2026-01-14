@@ -18,7 +18,7 @@ for col in cols:
 
 # --- İNTEGRAL ALARAK KONUM HESAPLAMA ---
 # dt = 0.05 saniye (20 Hz)
-dt = 0.005
+dt = 0.05
 
 # Kümülatif toplam alarak anlık pozisyonu (Feet) buluyoruz
 # Başlangıç noktası (0,0,0) kabul edilir.
