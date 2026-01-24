@@ -210,7 +210,6 @@ class CockpitApp:
         # Döndürme
         roll_rad = math.radians(-roll)
         cos_a, sin_a = math.cos(roll_rad), math.sin(roll_rad)
-        
         rotated_poly = []
         for x, y in rect_points:
             rx = x * cos_a - y * sin_a + cx

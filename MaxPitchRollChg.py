@@ -5,94 +5,105 @@ import matplotlib.pyplot as plt
 # ---------------------------------------------------------
 # AYARLAR
 # ---------------------------------------------------------
-FILE_NAME = 'DnzRec.csv'   # Dosya adını buradan değiştirin
-SAMPLE_RATE = 20           # Veri frekansı (20 Hz)
-IS_RADIAN = True           # Veriler Radyan ise True, Derece ise False
+FILE_NAME = 'i09.csv'
+SAMPLE_RATE = 20           
+IS_NORMALIZED = True       
 
 # ---------------------------------------------------------
 # 1. VERİ YÜKLEME
 # ---------------------------------------------------------
 try:
-    df = pd.read_csv(FILE_NAME)
-    df.columns = [col.strip().replace('"', '') for col in df.columns]
+    with open(FILE_NAME, 'r') as f:
+        header = f.readline().strip().replace('"', '')
+    cols = [c.strip() for c in header.split(',')]
+    df = pd.read_csv(FILE_NAME, skiprows=1, names=cols)
 except FileNotFoundError:
-    print(f"HATA: '{FILE_NAME}' dosyası bulunamadı!")
+    print(f"HATA: '{FILE_NAME}' bulunamadı!")
     exit()
+except Exception:
+    df = pd.read_csv(FILE_NAME)
 
-# Zaman formatı
 if "TimeMarker" in df.columns:
     df["TimeMarker"] = pd.to_datetime(df["TimeMarker"])
+else:
+    df["TimeMarker"] = df.index
 
 # ---------------------------------------------------------
-# 2. HESAPLAMA VE ANALİZ
+# 2. HESAPLAMA (Calculated Delta)
 # ---------------------------------------------------------
 analyze_cols = ["RollAngle", "PitchAngle"]
-results = {}
-
-print(f"Analiz Başlıyor... (Birim Dönüşümü: {'Radyan->Derece' if IS_RADIAN else 'Yok, Zaten Derece'})")
+results_calc = {}
 
 for col in analyze_cols:
     if col in df.columns:
-        # Önce veriyi sayısal formata çevirip ham halini alalım
-        raw_values = pd.to_numeric(df[col], errors='coerce')
-        
-        # BİRİM DÖNÜŞÜMÜ KONTROLÜ
-        if IS_RADIAN:
-            degree_values = raw_values * (180.0 / np.pi)
-        else:
-            degree_values = raw_values # Dönüşüm yapma, olduğu gibi kullan
-        
-        # 1 Saniyelik Değişimi Hesapla
-        # diff(SAMPLE_RATE): Şu anki satır ile 20 satır önceki (1 sn önceki) fark
-        delta_1s = degree_values.diff(periods=SAMPLE_RATE).abs()
-        
-        # Maksimumu Bul
-        max_val = delta_1s.max()
-        max_idx = delta_1s.idxmax()
-        time_of_max = df.loc[max_idx, "TimeMarker"] if max_idx in df.index else "Bilinmiyor"
-        
-        results[col] = {
-            "max_change": max_val,
-            "time": time_of_max,
-            "series": delta_1s 
-        }
-        
-        print(f"\n--- {col} ANALİZİ ---")
-        print(f"1 Saniyedeki Maksimum Değişim: {max_val:.4f} Derece")
-        print(f"Gerçekleştiği Zaman: {time_of_max}")
-        print("-" * 30)
+        raw = pd.to_numeric(df[col], errors='coerce')
+        val = raw * 180.0 if IS_NORMALIZED else raw
+        # 1 saniyelik mutlak değişim
+        results_calc[col] = val.diff(periods=SAMPLE_RATE).abs()
 
 # ---------------------------------------------------------
-# 3. GRAFİKLEME
+# 3. RATE VERİLERİ (System Data)
 # ---------------------------------------------------------
-if results:
-    fig, ax = plt.subplots(figsize=(12, 6))
-    fig.suptitle("Saniyelik Açısal Değişim Miktarları (Delta / 1 sec)", fontsize=14)
+rate_cols = ["RollRate", "PitchRate", "YawRate"]
+results_rate = {}
 
-    for col in results:
-        # Zaman ekseni varsa onu kullan, yoksa index (satır no) kullan
-        x_axis = df["TimeMarker"] if "TimeMarker" in df.columns else df.index
-        ax.plot(x_axis, results[col]["series"], label=f"{col} Değişimi", linewidth=1.5)
+for col in rate_cols:
+    if col in df.columns:
+        raw = pd.to_numeric(df[col], errors='coerce')
+        val = raw * 180.0 if IS_NORMALIZED else raw
+        results_rate[col] = val
 
-    ax.set_ylabel("Değişim (Derece / 1 Saniye)")
-    ax.set_xlabel("Zaman")
-    ax.legend()
-    ax.grid(True, alpha=0.3)
+# ---------------------------------------------------------
+# 4. GRAFİKLEME
+# ---------------------------------------------------------
+fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(14, 10), sharex=True)
 
-    # Maksimum noktaları işaretle
-    for col in results:
-        max_val = results[col]["max_change"]
-        time_val = results[col]["time"]
-        
-        # Eğer zaman bilgisi varsa grafiğe ekle
-        if "TimeMarker" in df.columns:
-            ax.annotate(f'Max {col}: {max_val:.2f}°', 
-                        xy=(time_val, max_val), 
-                        xytext=(10, 15), textcoords='offset points',
-                        arrowprops=dict(arrowstyle="->", color='red', lw=1.5),
-                        bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="gray", alpha=0.8))
+# --- ÜST GRAFİK: Sizin Hesapladığınız (Mutlak Değişim) ---
+ax1.set_title("1. Calculated Angle Delta (Absolute Change / 1 sec)", fontsize=12, fontweight='bold')
+for col_name, data in results_calc.items():
+    line, = ax1.plot(df["TimeMarker"], data, label=f"Calc {col_name}", linewidth=1.5)
+    
+    # ANNOTATION (MAX VALUE)
+    max_val = data.max()
+    max_idx = data.idxmax()
+    if pd.notna(max_val):
+        x_pos = df["TimeMarker"][max_idx]
+        ax1.annotate(f'Max: {max_val:.2f}°', 
+                     xy=(x_pos, max_val), xytext=(10, 10), textcoords='offset points',
+                     arrowprops=dict(arrowstyle="->", color=line.get_color(), lw=1.5),
+                     bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="gray", alpha=0.8))
 
-    plt.tight_layout()
-    plt.show()
-else:
-    print("Analiz edilecek sütunlar dosyada bulunamadı.")
+ax1.set_ylabel("Change Magnitude (°/s)")
+ax1.grid(True, alpha=0.3)
+ax1.legend(loc="upper right")
+
+# --- ALT GRAFİK: Dosyadaki Hazır Veri (Salınım Yapan) ---
+ax2.set_title("2. System Angular Rates (Oscillating around 0)", fontsize=12, fontweight='bold')
+# 0 Referans Çizgisi
+ax2.axhline(0, color='black', linewidth=1, linestyle='--')
+
+colors = {'RollRate': 'tab:blue', 'PitchRate': 'tab:orange', 'YawRate': 'tab:green'}
+for col_name, data in results_rate.items():
+    c = colors.get(col_name, 'black')
+    line, = ax2.plot(df["TimeMarker"], data, label=f"System {col_name}", color=c, linewidth=1.5, alpha=0.7)
+    
+    # ANNOTATION (MAX ABSOLUTE VALUE)
+    # Rate verisi - ve + olduğu için, en büyük etkiyi (şiddeti) bulmak için mutlak değere bakıyoruz
+    # ama grafikte gerçek değerini (eksi veya artı) işaretliyoruz.
+    max_idx = data.abs().idxmax()
+    max_val = data[max_idx] # Gerçek değer (örn: -25.4)
+    
+    if pd.notna(max_val):
+        x_pos = df["TimeMarker"][max_idx]
+        ax2.annotate(f'Peak {col_name}: {max_val:.2f}°/s', 
+                     xy=(x_pos, max_val), xytext=(10, 20 if max_val>0 else -20), textcoords='offset points',
+                     arrowprops=dict(arrowstyle="->", color=c, lw=1.5),
+                     bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="gray", alpha=0.8))
+
+ax2.set_ylabel("Rate (°/s)")
+ax2.set_xlabel("Time")
+ax2.grid(True, alpha=0.3)
+ax2.legend(loc="upper right")
+
+plt.tight_layout()
+plt.show()
